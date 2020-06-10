@@ -16,9 +16,11 @@ class GameOfLife():
                 raise Exception("Spécifier la forme (height,width)")
             self.gameArray = np.full((height,width),0)
             self.shape = (height,width)
+            self.livingCellsNumber = 0
         else:
             self.gameArray = initial_array
             self.shape = initial_array.shape
+            self.livingCellsNumber = self._getLivingCellsNumber(array=initial_array)
 
         self.totalSteps = 0
 
@@ -27,6 +29,7 @@ class GameOfLife():
     def __repr__(self):
         _string = f"Game Array:\n{self.gameArray}\n"
         _string += f"Number of steps : {self.totalSteps}\n"
+        _string += f"Number of living cells : {self.livingCellsNumber}\n"
         return(_string)
 
 
@@ -46,9 +49,13 @@ class GameOfLife():
                     _changedList.append((x,y))
 
         # On change l'état de chaque case
-        # n.b : pour un état qui a changé, le nouvel état est "1 - ancien_etat"
         for (x,y) in _changedList:
-            self.gameArray[x][y] = 1 - self.gameArray[x][y]
+            if self.gameArray[x][y] == 1:
+                self.gameArray[x][y] = 0
+                self.livingCellsNumber -= 1
+            else:
+                self.gameArray[x][y] = 1
+                self.livingCellsNumber += 1
 
         self.totalSteps += 1
 
@@ -63,12 +70,14 @@ class GameOfLife():
         return: liste des cases qui ont changés
         """
         _changedList = []
+        self.livingCellsNumber = 0
         for x in range(0,self.shape[0]):
             for y in range(0,self.shape[1]):
                 old = self.gameArray[x][y]
                 r = random()
                 if r <= chance:
                     self.gameArray[x][y] = 1
+                    self.livingCellsNumber += 1
                     if old == 0:
                         _changedList.append((x,y))
                 else:
@@ -93,7 +102,7 @@ class GameOfLife():
         if self.gameArray[x][y] == 0:
             return(False)
 
-        numberOfNeighbours = len(self._getAliveNeighbours(x,y))
+        numberOfNeighbours = len(self._getLivingNeighbours(x,y))
         if not (2<=numberOfNeighbours<=3):
             return(True)
         else:
@@ -110,7 +119,7 @@ class GameOfLife():
         if self.gameArray[x][y] == 1:
             return(False)
 
-        numberOfNeighbours = len(self._getAliveNeighbours(x,y))
+        numberOfNeighbours = len(self._getLivingNeighbours(x,y))
         if numberOfNeighbours == 3:
             return(True)
         else:
@@ -158,7 +167,7 @@ class GameOfLife():
 
         return(_list)
 
-    def _getAliveNeighbours(self,x,y):
+    def _getLivingNeighbours(self,x,y):
         _list = self._getNeighbours(x,y)
         _temp = []
         for (x,y) in _list:
@@ -166,17 +175,25 @@ class GameOfLife():
                 _temp.append((x,y))
         return(_temp)
 
-    def _getAlive(self):
-        _list = []
-        for x in range(0,self.shape[0]):
-            for y in range(0,self.shape[1]):
-                if self.gameArray[x][y] == 1:
-                    _list.append((x,y))
-        return(_list)
+    def _getLivingCellsNumber(self,array=None):
+        if array is None:
+            _temp = 0
+            for x in range(0,self.shape[0]):
+                for y in range(0,self.shape[1]):
+                    if self.gameArray[x][y] == 1:
+                        _temp += 1
+            return(_temp)
+        else:
+            _temp = 0
+            for x in range(0,self.shape[0]):
+                for y in range(0,self.shape[1]):
+                    if array[x][y] == 1:
+                        _temp += 1
+            return(_temp)
 
 
 if __name__ == "__main__":
     global game
 
-    game = GameOfLife(height=10,width=10)
+    game = GameOfLife(height=10,width=5)
     game.randomize(chance=0.1, reset=True)
