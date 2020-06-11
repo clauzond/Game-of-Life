@@ -11,6 +11,8 @@ class GameWindow():
         self.canvasWidth = canvasWidth
 
         self.GameOfLife = None
+        self.cubeDim = None
+        self.lastCube = None
 
         self._createWindow()
         self._createWidgets()
@@ -89,7 +91,7 @@ class GameWindow():
                 this_color = self.deadCellsColor
             self._drawOneCube(canvas=self.gameCanvas, cubeDim=self.cubeDim, line=x, column=y, color=this_color)
 
-    def _getMouseClickCoords(self, event):
+    def _mouseColoring(self, event, motion):
         """
         Get mouse coordinates in line/column
         """
@@ -103,13 +105,28 @@ class GameWindow():
                 this_column = int(x // self.cubeDim)
                 this_line = int(y // self.cubeDim)
 
+                # 2 conditions de sortie :
+                #   *Le cube vient d'être appuyé pendant un déplacement de souris
+                #   *Le cube est en dehors du canvas
+                if self.lastCube == (this_line,this_column) and motion:
+                    return
+                if not(0<=this_line<=self.GameOfLife.shape[0]-1) or not(0<=this_column<=self.GameOfLife.shape[1]-1):
+                    return
+                if not motion:
+                    self.lastCube = None
+                else:
+                    self.lastCube = (this_line,this_column)
+
                 if self.GameOfLife.gameArray[this_line][this_column] == 1:
                     this_color = self.deadCellsColor
-                    self.GameOfLife.gameArray[this_line][this_column] = 0  
+                    self.GameOfLife.gameArray[this_line][this_column] = 0
+                    self.GameOfLife.livingCellsNumber -= 1
                 else:
                     this_color = self.livingCellsColor
                     self.GameOfLife.gameArray[this_line][this_column] = 1
+                    self.GameOfLife.livingCellsNumber += 1
                 self._drawOneCube(canvas=self.gameCanvas, cubeDim=self.cubeDim, line=this_line, column=this_column, color=this_color)
+                self._updateLabels()
 
 
 
@@ -133,8 +150,15 @@ class GameWindow():
         self.gameWindow.option_add('*foreground', self.foregroundColor)
         self.gameWindow.configure(bg=self.backgroundColor)
 
+
+
     def _createBinds(self):
-        self.gameCanvas.bind("<Button-1>",self._getMouseClickCoords)
+        def motion_coloring(event):
+            self._mouseColoring(event=event, motion=True)
+        def click_coloring(event):
+            self._mouseColoring(event=event, motion=False)
+        self.gameCanvas.bind("<B1-Motion>",motion_coloring)
+        self.gameCanvas.bind("<Button-1>",click_coloring)
 
     def _createWidgets(self):
         """
@@ -147,7 +171,7 @@ class GameWindow():
                 * Play/Pause
                 * Change dead color (color 1)
                 * Change alive color (color 2)
-                * Change dims
+                * Reset button
             RADIO BUTTONS :
                 * Mode observation
                 * Mode editeur
@@ -156,6 +180,7 @@ class GameWindow():
                 * Number of living cells
             SCALE :
                 * Steps per second
+                * Height and Width
             ENTRIES :
                 * Change dims
 
@@ -192,26 +217,31 @@ class GameWindow():
                                         command=self._changeColor2)
         self.livingColorButton.grid(row=2, column=0)
 
+        self.resetButton = Button(self.windowFrame, text="Reset",command=self._pressResetButton)
+        self.resetButton.grid(row=1, column=6)
+
         # RADIO BUTTONS
         self.modeVar = StringVar(self.gameWindow, "observation")
         self.modeRadio1 = Radiobutton(self.windowFrame,
                                       text="Mode observation",
                                       variable=self.modeVar,
                                       value="observation",
-                                      indicatoron=0)
+                                      indicatoron=0,
+                                      command=self._radioPress)
         self.modeRadio1.grid(row=1, column=5)
         self.modeRadio2 = Radiobutton(self.windowFrame,
                                       text="Mode éditeur",
                                       variable=self.modeVar,
                                       value="editeur",
-                                      indicatoron=0)
+                                      indicatoron=0,
+                                      command=self._radioPress)
         self.modeRadio2.grid(row=2, column=5)
 
         # MUTABLE LABELS
         self.stepNumberLabel = Label(self.gameCanvas, text="Step: 0")
         self.stepNumberLabel.place(x=10, y=10)
         self.livingNumberLabel = Label(self.gameCanvas, text="Living : 0")
-        self.livingNumberLabel.place(x=10, y=30)
+        self.livingNumberLabel.place(x=10, y=40)
 
         # SCALE & LABELS
         self.speedLabel = Label(self.windowFrame, text="Step per sec")
@@ -221,20 +251,20 @@ class GameWindow():
         self.speedScale.grid(row=2, column=2)
 
         self.heightLabel = Label(self.windowFrame, text="Height")
-        self.heightLabel.grid(row=1, column=3)
+        self.heightLabel.grid(row=1, column=4)
         self.heightScale = Scale(
             self.windowFrame, from_=1, to=100, orient="horizontal")
-        self.heightScale.grid(row=2, column=3)
+        self.heightScale.grid(row=2, column=4)
 
         self.widthLabel = Label(self.windowFrame, text="Width")
-        self.widthLabel.grid(row=1, column=4)
+        self.widthLabel.grid(row=1, column=3)
         self.widthScale = Scale(self.windowFrame, from_=1,
                                 to=100, orient="horizontal")
-        self.widthScale.grid(row=2, column=4)
+        self.widthScale.grid(row=2, column=3)
 
     def _updateLabels(self):
-        self.stepNumberLabel.config(text="")
-        self.livingNumberLabel.config(text="")
+        self.stepNumberLabel.config(text = f"Step : {self.GameOfLife.totalSteps}")
+        self.livingNumberLabel.config(text = f"Living : {self.GameOfLife.livingCellsNumber}")
 
 
     def _getHeight(self):
@@ -250,48 +280,38 @@ class GameWindow():
         pass
 
     def _pressPlayButton(self):
-        if self.playState == "play":
-            pass
+        pass
 
-            self.playState = "pause"
-            self.playButton.config(text="Pause")
-        else:
-            pass
 
-            self.playState = "play"
-            self.playButton.config(text="Play")
+    def _radioPress(self):
+        pass
+            
+    def _pressResetButton(self):
+        self.GameOfLife = None
+        self.cubeDim = None
+
+        self.startButton.config(text="Start")
+        self.startState = "nothing"
+
+        self.widthScale.config(state="normal")
+        self.heightScale.config(state="normal")
+
+        self.stepNumberLabel.config(text="Step : 0")
+        self.livingNumberLabel.config(text="Living : 0")
+
+        self.gameCanvas.delete("all")
 
     def _pressStartButton(self):
-        if self.modeVar.get() == "observation":
-            if self.startState == "nothing":
-                self.startButton.config(text="Next step")
-                self.startState = "start"
+        if self.startState == "nothing":
+            self.startButton.config(text="Next step")
+            self.startState = "start"
 
-                self.widthScale.config(state="disabled")
-                self.heightScale.config(state="disabled")
+            self.widthScale.config(state="disabled")
+            self.heightScale.config(state="disabled")
 
-                self.modeRadio1.config(state="disabled")
-                self.modeRadio2.config(state="disabled")
-
-                self._initGameOfLife()
-            else:
-                self._nextStepButton()
-        elif self.modeVar.get() == "editeur":
-            if self.startState == "nothing":
-                self.startButton.config(text="Stop")
-                self.startState = "start"
-
-                self.widthScale.config(state="disabled")
-                self.heightScale.config(state="disabled")
-                self.modeRadio1.config(state="disabled")
-                self.modeRadio2.config(state="disabled")
-
-                self._initGameOfLife()
-            else:
-                self.startState = "nothing"
-                self.startButton.config(text="Start")
-                self.modeRadio1.config(state="normal")
-                self.modeRadio2.config(state="normal")
+            self._initGameOfLife()
+        else:
+            self._nextStepButton()
 
     def _loopStep(self):
         pass
@@ -300,8 +320,7 @@ class GameWindow():
         if self.GameOfLife is not None:
             this_list = self.GameOfLife.nextStep()
             self._drawCanvas(changedlist=this_list)
-            self.stepNumberLabel.config(text = self.GameOfLife.totalSteps)
-            self.livingNumberLabel.config(text = self.GameOfLife.livingCellsNumber)
+            self._updateLabels()
 
 
     def _refreshColors(self):
@@ -322,7 +341,6 @@ class GameWindow():
         if colorStr is not None:
             self.deadCellsColor = str(colorStr)
             self.deadColorButton.config(bg=self.deadCellsColor)
-            # self._drawCanvas()
 
             if self.GameOfLife is not None:
                 self._refreshColors()
@@ -337,7 +355,6 @@ class GameWindow():
         if colorStr is not None:
             self.livingCellsColor = str(colorStr)
             self.livingColorButton.config(bg=self.livingCellsColor)
-            # self._drawCanvas()
 
             if self.GameOfLife is not None:
                 self._refreshColors()
