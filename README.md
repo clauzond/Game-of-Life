@@ -1,1 +1,1 @@
-Game of Life
+Une implémentation très simple en Python avec tkinter du célèbre Conway's Game of Life
