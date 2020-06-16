@@ -112,10 +112,7 @@ class GameWindow():
                     return
                 if not(0<=this_line<=self.GameOfLife.shape[0]-1) or not(0<=this_column<=self.GameOfLife.shape[1]-1):
                     return
-                if not motion:
-                    self.lastCube = None
-                else:
-                    self.lastCube = (this_line,this_column)
+                self.lastCube = (this_line,this_column)
 
                 if self.GameOfLife.gameArray[this_line][this_column] == 1:
                     this_color = self.deadCellsColor
